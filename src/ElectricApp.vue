@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import { initElectric } from './init';
-import { Electric } from './generated/client/index'
 import { ref, computed, reactive, watchEffect, watch } from 'vue'
 import { genUUID, hasIntersection } from 'electric-sql/util'
-import { isTemplateExpression } from 'typescript';
 import { generateRandomName, generateRandomValue } from './utils';
+import {createLiveQuery} from './lib/createLiveQuery'
+import { IntFilterSchema } from './generated/client';
 
 
 
 
 
 const electric = await initElectric()
-electric.db.person.sync()
+const {notifier,db} = electric
+db.person.sync()
 
 const add = () => {
-    electric.db.person.create({
+    db.person.create({
         data: {
             id: genUUID(),
             name: generateRandomName(),
@@ -23,39 +24,28 @@ const add = () => {
     })
 }
 
+const clear = () => db.person.deleteMany()
+
+const change = () => db.person.findFirst().then(p => 
+                 p && db.person.update({where:{id:p.id},data:{age:5}}))
+
+
+
 const search = ref("")
-const query = computed(() => electric.db.person.liveMany({ where: { name: { contains: search.value } } }));
+const query = computed(() => db.person.liveMany({ where: { name: { contains: search.value } } }));
 
-const items = ref([])
-
-watch(
-    query,
-    (q, _) => {
-        let tablenames = []
-        q().then(
-            r => {
-                tablenames = r.tablenames
-                items.value = r.result
-                electric.notifier.subscribeToDataChanges(
-                    n => {
-                        if (hasIntersection(tablenames, electric.notifier.alias(n))) {
-                            q().then(r => items.value = r.result)
-
-                        }
-                    }
-                )
-            }
-        )
-    },
-    {immediate: true}
-)
-
+const items = createLiveQuery(notifier,query)
 
 </script>
 
 
 <template>
     <button @click="add">Add</button>
-    <input v-model="search" />
-    <div v-for="item in items">{{ item.name }}</div>
+    <button @click="clear">Clear</button>
+    <button @click="change">Change</button>
+    <br>
+    <input v-model="search" placeholder="search"/>
+    <div v-if="items">
+        <div v-for="item in items.value">{{ item.name }} {{ item.age }}</div>
+    </div>
 </template>
