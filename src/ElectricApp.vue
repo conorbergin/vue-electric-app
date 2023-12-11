@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { initElectric } from './init';
-import { ref, computed, reactive, watchEffect, watch } from 'vue'
-import { genUUID, hasIntersection } from 'electric-sql/util'
+import { ref, computed} from 'vue'
+import { genUUID } from 'electric-sql/util'
 import { generateRandomName, generateRandomValue } from './utils';
-import {createLiveQuery} from './lib/createLiveQuery'
-import { IntFilterSchema } from './generated/client';
+import {createLiveQuery, createDerivedQuery} from './lib/createLiveQuery'
 
 
 
@@ -34,7 +33,7 @@ const change = () => db.person.findFirst().then(p =>
 const search = ref("")
 const query = computed(() => db.person.liveMany({ where: { name: { contains: search.value } } }));
 
-const items = createLiveQuery(notifier,query)
+const items = createDerivedQuery(notifier,query)
 
 </script>
 
